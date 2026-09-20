@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Karaoke VocalMatch Pro 🎤</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700;900&display=swap');
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #0f172a; /* Slate 900 */
+            color: #f8fafc;
+        }
+
+        /* Letras y Transiciones */
+        .lyrics-container {
+            max-height: 50vh;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+
+        .word {
+            display: inline-block;
+            margin-right: 6px;
+            margin-bottom: 8px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 2px 6px;
+            border-radius: 6px;
+        }
+
+        /* Estado por Defecto */
+        .word-pending { color: #64748b; }
+        
+        /* Estado Activo (Donde debe ir cantando) */
+        .word-active {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #e2e8f0;
+            transform: scale(1.05);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Aciertos (Verde) */
+        .word-hit {
+            color: #22c55e;
+            font-weight: 800;
+            text-shadow: 0 0 12px rgba(34, 197, 94, 0.5);
+            transform: scale(1.1);
+        }
+
+        /* Errores / Omitidos (Rojo) */
+        .word-miss {
+            color: #ef4444;
+            opacity: 0.6;
+            text-decoration: line-through;
+        }
+
+        /* Scrollbar Oscuro */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col p-4 lg:p-6 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-800 via-slate-900 to-black">
+
+    <header class="flex flex-col md:flex-row items-center justify-between mb-6 border-b border-slate-700/50 pb-4 gap-4 w-full max-w-7xl mx-auto">
+        <div class="flex items-center gap-3">
+            <span class="text-3xl">🎙️</span>
+            <div>
+                <h1 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-emerald-400 tracking-tight">
+                    Karaoke Pro AI
+                </h1>
+                <p class="text-xs text-slate-400 font-medium">Levenshtein Matching Engine</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-6 bg-slate-800/80 px-6 py-3 rounded-2xl border border-slate-700 shadow-lg">
+            <div class="text-center">
+                <p class="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Aciertos</p>
+                <p id="hitsDisplay" class="text-2xl font-black text-green-400">0</p>
+            </div>
+            <div class="w-px h-8 bg-slate-700"></div>
+            <div class="text-center">
+                <p class="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Errores</p>
+                <p id="missDisplay" class="text-2xl font-black text-red-500">0</p>
+            </div>
+            <div class="w-px h-8 bg-slate-700"></div>
+            <div class="text-center">
+                <p class="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Puntaje</p>
+                <p class="text-3xl font-black text-white">
+                    <span id="scoreDisplay">0</span><span class="text-lg text-slate-500">%</span>
+                </p>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 w-full max-w-7xl mx-auto flex flex-col lg:flex-row gap-6">
+        
+        <div class="w-full lg:w-1/3 flex flex-col gap-4">
+            <!-- Configuración -->
+            <div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700 p-5 shadow-xl">
+                <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">1. Enlace de YouTube</label>
+                <input type="text" id="ytLink" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white mb-4 focus:ring-2 focus:ring-emerald-500 outline-none transition-all" placeholder="Ej: https://youtube.com/watch?v=..." value="https://www.youtube.com/watch?v=Jm2h7_1Qn1M">
+                
+                <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">2. Pega la Letra (Sin Tiempos)</label>
+                <textarea id="rawLyrics" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-slate-200 h-32 focus:ring-2 focus:ring-emerald-500 outline-none transition-all resize-none text-sm leading-relaxed" placeholder="Pega aquí la letra de la canción..."></textarea>
+                
+                <button id="startBtn" class="w-full mt-4 bg-gradient-to-r from-sky-500 to-emerald-500 hover:from-sky-400 hover:to-emerald-400 text-white font-bold py-3 px-6 rounded-xl transition-all transform hover:scale-[1.02] shadow-lg shadow-emerald-900/20">
+                    ▶️ Iniciar Karaoke
+                </button>
+            </div>
+
+            <!-- Reproductor de Video -->
+            <div class="bg-black rounded-2xl border border-slate-700 aspect-video relative overflow-hidden shadow-xl" id="videoContainer">
+                <div id="player" class="w-full h-full absolute inset-0 z-0 hidden"></div>
+                <div id="videoOverlay" class="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center z-10">
+                    <svg class="w-12 h-12 text-slate-600 mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                    <p class="text-slate-500 font-medium text-sm">El video aparecerá aquí</p>
+                </div>
+            </div>
+
+            <!-- Estado del Micrófono -->
+            <div class="bg-slate-800/60 rounded-2xl border border-slate-700 p-4 flex flex-col items-center justify-center relative overflow-hidden h-24">
+                <div class="flex items-center gap-2 z-10 mb-2">
+                    <div id="micIndicator" class="w-3 h-3 rounded-full bg-slate-600 transition-colors"></div>
+                    <span id="micStatus" class="text-xs font-bold text-slate-400 uppercase tracking-widest">Micrófono inactivo</span>
+                </div>
+                <p id="liveTranscript" class="text-sm text-sky-400 italic text-center z-10 truncate w-full px-2">Escuchando...</p>
+            </div>
+        </div>
+
+        <div class="w-full lg:w-2/3 bg-slate-800/40 backdrop-blur rounded-2xl border border-slate-700 p-6 flex flex-col shadow-xl">
+            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-700/50 pb-2">Seguimiento en Tiempo Real</h2>
+            
+            <div id="lyricsDisplay" class="lyrics-container flex-1 text-2xl md:text-3xl lg:text-4xl leading-[1.8] text-slate-500 font-medium pb-40">
+                <div class="h-full flex items-center justify-center text-center opacity-50 text-xl">
+                    Prepara la canción y presiona Iniciar para cargar la letra.
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script>
+        // Letra por defecto de ejemplo
+        document.getElementById('rawLyrics').value = "Ay ay ay ay\nCanta y no llores\nPorque cantando se alegran\nCielito lindo los corazones";
+
+        // Variables de estado
+        let player;
+        let recognition;
+        let isRecording = false;
+        
+        let wordsData = []; 
+        let currentWordIndex = 0;
+        let hitsCount = 0;
+        let missCount = 0;
+        let totalScoreSum = 0.0;
+
+        // Elementos DOM
+        const ui = {
+            ytLink: document.getElementById('ytLink'),
+            rawLyrics: document.getElementById('rawLyrics'),
+            startBtn: document.getElementById('startBtn'),
+            lyricsDisplay: document.getElementById('lyricsDisplay'),
+            scoreDisplay: document.getElementById('scoreDisplay'),
+            hitsDisplay: document.getElementById('hitsDisplay'),
+            missDisplay: document.getElementById('missDisplay'),
+            videoOverlay: document.getElementById('videoOverlay'),
+            playerDiv: document.getElementById('player'),
+            micStatus: document.getElementById('micStatus'),
+            micIndicator: document.getElementById('micIndicator'),
+            liveTranscript: document.getElementById('liveTranscript')
+        };
+
+        function getLevenshteinSimilarity(s1, s2) {
+            s1 = s1.toLowerCase().trim();
+            s2 = s2.toLowerCase().trim();
+            
+            if (s1 === s2) return 1.0;
+            if (s1.length === 0 || s2.length === 0) return 0.0;
+
+            const len1 = s1.length;
+            const len2 = s2.length;
+            const matrix = Array(len2 + 1).fill().map(() => Array(len1 + 1).fill(0));
+
+            for (let i = 0; i <= len1; i++) matrix[0][i] = i;
+            for (let j = 0; j <= len2; j++) matrix[j][0] = j;
+
+            for (let j = 1; j <= len2; j++) {
+                for (let i = 1; i <= len1; i++) {
+                    if (s1[i - 1] === s2[j - 1]) {
+                        matrix[j][i] = matrix[j - 1][i - 1];
+                    } else {
+                        matrix[j][i] = Math.min(
+                            matrix[j - 1][i - 1] + 1, // Sustitución
+                            matrix[j][i - 1] + 1,     // Inserción
+                            matrix[j - 1][i] + 1      // Borrado
+                        );
+                    }
+                }
+            }
+            const distance = matrix[len2][len1];
+            const maxLength = Math.max(len1, len2);
+            return 1 - (distance / maxLength);
+        }
+
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'es-MX';
+
+            recognition.onstart = () => {
+                isRecording = true;
+                ui.micStatus.textContent = "Micrófono Activo";
+                ui.micStatus.className = "text-xs font-bold text-emerald-400 uppercase tracking-widest";
+                ui.micIndicator.className = "w-3 h-3 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_#10b981]";
+                ui.liveTranscript.textContent = "";
+            };
+
+            recognition.onresult = (event) => {
+                let currentChunk = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    currentChunk += event.results[i][0].transcript + ' ';
+                }
+                ui.liveTranscript.textContent = currentChunk;
+                processVoiceChunk(currentChunk);
+            };
+
+            recognition.onerror = (event) => {
+                console.error("Mic Error:", event.error);
+                if(event.error === 'not-allowed') {
+                    ui.micStatus.textContent = "Permiso Denegado";
+                    ui.micStatus.className = "text-xs font-bold text-red-500 uppercase tracking-widest";
+                    ui.micIndicator.className = "w-3 h-3 rounded-full bg-red-600";
+                    alert("Debes permitir el acceso al micrófono para jugar.");
+                }
+            };
+
+            recognition.onend = () => {
+                // Reiniciar si se detuvo pero el video sigue reproduciéndose
+                if (isRecording && player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                    try { recognition.start(); } catch(e) {}
+                }
+            };
+        } else {
+            alert("Navegador no soportado. Por favor, usa Google Chrome de escritorio.");
+        }
+
+        function onYouTubeIframeAPIReady() {
+            console.log("YT Ready");
+        }
+
+        function extractVideoID(url) {
+            const match = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
+            return match ? match[1] : null;
+        }
+
+        ui.startBtn.addEventListener('click', () => {
+            const videoId = extractVideoID(ui.ytLink.value);
+            if (!videoId) return alert("URL de YouTube inválida.");
+            if (ui.rawLyrics.value.trim() === "") return alert("Pega la letra primero.");
+
+            prepareLyricsEngine(ui.rawLyrics.value);
+            
+            ui.videoOverlay.style.display = 'none';
+            ui.playerDiv.classList.remove('hidden');
+
+            if (player) {
+                player.loadVideoById(videoId);
+            } else {
+                player = new YT.Player('player', {
+                    height: '100%', width: '100%', videoId: videoId,
+                    events: {
+                        'onReady': (e) => e.target.playVideo(),
+                        'onStateChange': onPlayerStateChange
+                    }
+                });
+            }
+        });
+
+        function onPlayerStateChange(event) {
+            if (event.data == YT.PlayerState.PLAYING) {
+                if (!isRecording && recognition) {
+                    try { recognition.start(); } catch(e) {}
+                }
+            } else if (event.data == YT.PlayerState.PAUSED || event.data == YT.PlayerState.ENDED) {
+                if (isRecording && recognition) {
+                    isRecording = false;
+                    recognition.stop();
+                    ui.micStatus.textContent = "Pausado";
+                    ui.micStatus.className = "text-xs font-bold text-slate-400 uppercase tracking-widest";
+                    ui.micIndicator.className = "w-3 h-3 rounded-full bg-slate-600";
+                }
+            }
+        }
+
+        function prepareLyricsEngine(text) {
+            ui.lyricsDisplay.innerHTML = '';
+            wordsData = [];
+            currentWordIndex = 0;
+            hitsCount = 0;
+            missCount = 0;
+            totalScoreSum = 0.0;
+            updateUIStats();
+
+            const lines = text.split('\n');
+            let globalIdx = 0;
+
+            lines.forEach((line) => {
+                if(line.trim() === '') return;
+                
+                const lineDiv = document.createElement('div');
+                lineDiv.className = "mb-2 md:mb-4";
+                
+                const words = line.trim().split(/\s+/);
+                words.forEach((word) => {
+                    const cleanWord = word.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9ñ]/g, '');
+                    if(cleanWord === '') return;
+
+                    const span = document.createElement('span');
+                    span.textContent = word;
+                    span.className = "word word-pending";
+                    span.id = "w-" + globalIdx;
+                    
+                    lineDiv.appendChild(span);
+                    // Add space after word
+                    lineDiv.appendChild(document.createTextNode(' '));
+                    
+                    wordsData.push({
+                        index: globalIdx,
+                        original: word,
+                        normalized: cleanWord,
+                        element: span,
+                        processed: false,
+                        score: 0
+                    });
+                    globalIdx++;
+                });
+                ui.lyricsDisplay.appendChild(lineDiv);
+            });
+            
+            if(wordsData.length > 0) {
+                wordsData[0].element.classList.add('word-active');
+            }
+        }
+
+        function processVoiceChunk(transcript) {
+            if(currentWordIndex >= wordsData.length) return;
+
+            // Limpieza de voz para comparación
+            const spokenWords = transcript.toLowerCase()
+                .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^a-z0-9ñ\s]/g, '')
+                .split(/\s+/);
+
+            let pointerAdvanced = false;
+
+            spokenWords.forEach(spokenWord => {
+                if(!spokenWord || spokenWord.length < 1) return;
+
+                const LOOKAHEAD = 8; // Busca hasta 8 palabras adelante (permite saltos/errores)
+                let bestMatchIdx = -1;
+                let bestSim = 0;
+
+                for (let i = 0; i < LOOKAHEAD; i++) {
+                    let checkIdx = currentWordIndex + i;
+                    if (checkIdx >= wordsData.length) break;
+
+                    const expectedWord = wordsData[checkIdx].normalized;
+                    let similarity = getLevenshteinSimilarity(spokenWord, expectedWord);
+
+                    // Umbral de acierto (> 70% de similitud)
+                    let threshold = expectedWord.length <= 3 ? 0.85 : 0.70;
+
+                    if (similarity >= threshold && similarity > bestSim) {
+                        bestSim = similarity;
+                        bestMatchIdx = checkIdx;
+                        if (similarity > 0.95) break; // Match casi perfecto, no buscar más
+                    }
+                }
+
+                if (bestMatchIdx !== -1) {
+                    // 1. Marcar palabras saltadas como Errores (Rojo)
+                    for (let j = currentWordIndex; j < bestMatchIdx; j++) {
+                        const missedData = wordsData[j];
+                        if (!missedData.processed) {
+                            missedData.processed = true;
+                            missedData.score = 0;
+                            missedData.element.className = "word word-miss";
+                            missCount++;
+                        }
+                    }
+
+                    // 2. Marcar la palabra encontrada como Acierto (Verde)
+                    const hitData = wordsData[bestMatchIdx];
+                    hitData.processed = true;
+                    hitData.score = bestSim;
+                    hitData.element.className = "word word-hit";
+                    
+                    hitsCount++;
+                    totalScoreSum += bestSim;
+
+                    // 3. Avanzar el puntero
+                    currentWordIndex = bestMatchIdx + 1;
+                    pointerAdvanced = true;
+
+                    // 4. Activar la siguiente palabra visualmente
+                    if(currentWordIndex < wordsData.length) {
+                        wordsData[currentWordIndex].element.classList.add('word-active');
+                        // Scroll automático
+                        wordsData[currentWordIndex].element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
+            });
+
+            if (pointerAdvanced) {
+                updateUIStats();
+            }
+        }
+
+        function updateUIStats() {
+            ui.hitsDisplay.textContent = hitsCount;
+            ui.missDisplay.textContent = missCount;
+            
+            const totalProcessed = hitsCount + missCount;
+            if (totalProcessed > 0) {
+                const percentage = Math.round((totalScoreSum / totalProcessed) * 100);
+                ui.scoreDisplay.textContent = percentage;
+                
+                // Color dinámico del score final
+                if (percentage >= 85) ui.scoreDisplay.className = "text-emerald-400";
+                else if (percentage >= 60) ui.scoreDisplay.className = "text-yellow-400";
+                else ui.scoreDisplay.className = "text-red-500";
+            } else {
+                ui.scoreDisplay.textContent = "0";
+                ui.scoreDisplay.className = "text-white";
+            }
+        }
+    </script>
+</body>
+</html>
