@@ -49,23 +49,29 @@ min-height: 10vh;
 .lyric-active {
 font-size: clamp(2rem, 5vw, 4.5rem);
 font-weight: 900;
-color: white;
+            color: white;
 display: flex;
 flex-wrap: wrap;
 justify-content: center;
 gap: clamp(0.3rem, 1vw, 1rem);
 line-height: 1.2;
-text-shadow: 0px 5px 20px rgba(0,0,0,1);
+            text-shadow: 0px 5px 20px rgba(0,0,0,1);
+            /* Reemplazamos text-shadow por drop-shadow para permitir degradados en el texto */
+            filter: drop-shadow(0px 5px 15px rgba(0,0,0,1)) drop-shadow(3px 3px 5px rgba(0,0,0,0.8));
 }
 
 .lyric-active span {
-transition: color 0.15s ease, text-shadow 0.15s ease, transform 0.15s ease;
-}
+            transition: color 0.15s ease, text-shadow 0.15s ease, transform 0.15s ease;
+        }
 
-.word-filled {
-color: #fbbf24 !important; 
-text-shadow: 0 0 35px rgba(251, 191, 36, 1), 0 0 15px rgba(255, 255, 255, 0.8), 3px 3px 5px rgba(0,0,0,1) !important;
-transform: scale(1.08);
+        .word-filled {
+            color: #fbbf24 !important; 
+            text-shadow: 0 0 35px rgba(251, 191, 36, 1), 0 0 15px rgba(255, 255, 255, 0.8), 3px 3px 5px rgba(0,0,0,1) !important;
+            transform: scale(1.08);
+            background: white;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            transition: transform 0.05s linear; /* Transición súper rápida para fluidez */
 }
 
 .lyric-next {
@@ -172,13 +178,13 @@ animation: spin 1s linear infinite;
 <input type="text" id="manual-query" class="w-full bg-slate-900/90 border-2 border-slate-600 rounded-xl px-4 py-4 text-white focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/50 transition-all text-sm md:text-base placeholder-slate-500 shadow-inner" placeholder="Ej: Luis Miguel La Incondicional">
 </div>
 
-            <div>
-                <label class="block text-xs md:text-sm text-gray-300 mb-2 font-bold ml-1 uppercase tracking-wide">Micrófono <span class="text-yellow-500/70 text-[10px] normal-case">(Requiere permisos)</span></label>
-                <select id="mic-select" class="w-full bg-slate-900/90 border-2 border-slate-600 rounded-xl px-4 py-4 text-white focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/50 transition-all text-sm md:text-base appearance-none cursor-pointer shadow-inner">
-                    <option value="">Cargando micrófonos...</option>
-                </select>
-                <p class="text-[10px] text-slate-400 mt-2 ml-1">*Si la barra no detecta voz al cambiarlo, fórza el permiso desde el ícono del candadito 🔒 en la barra web.</p>
-            </div>
+<div>
+<label class="block text-xs md:text-sm text-gray-300 mb-2 font-bold ml-1 uppercase tracking-wide">Micrófono <span class="text-yellow-500/70 text-[10px] normal-case">(Requiere permisos)</span></label>
+<select id="mic-select" class="w-full bg-slate-900/90 border-2 border-slate-600 rounded-xl px-4 py-4 text-white focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/50 transition-all text-sm md:text-base appearance-none cursor-pointer shadow-inner">
+<option value="">Cargando micrófonos...</option>
+</select>
+<p class="text-[10px] text-slate-400 mt-2 ml-1">*Si la barra no detecta voz al cambiarlo, fórza el permiso desde el ícono del candadito 🔒 en la barra web.</p>
+</div>
 
 <div class="flex items-start md:items-center mt-6 bg-slate-900/70 p-5 rounded-xl border border-slate-600 shadow-lg hover:border-purple-500/50 transition-colors">
 <input type="checkbox" id="vdj-mode-toggle" class="w-6 h-6 mt-1 md:mt-0 text-yellow-500 bg-slate-800 border-slate-500 rounded focus:ring-yellow-500 shrink-0">
@@ -271,8 +277,7 @@ Generar Escenario
 <div id="mic-debug-panel" class="absolute top-6 left-6 md:top-10 md:left-12 w-56 md:w-72 glass-panel p-4 md:p-5 rounded-2xl z-20 border-l-4 border-l-cyan-400 transition-opacity">
 <div class="flex items-center gap-3 mb-3 border-b border-slate-700/50 pb-2">
 <div id="mic-status-dot" class="w-3 h-3 rounded-full bg-yellow-500 animate-pulse shrink-0 shadow-[0_0_10px_rgba(234,179,8,0.8)]"></div>
-                <div class="text-[10px] md:text-xs text-slate-200 font-black uppercase tracking-widest truncate">Monitor IA BOSE</div>
-                <div class="text-[10px] md:text-xs text-slate-200 font-black uppercase tracking-widest truncate" id="mic-name-display">Monitor IA</div>
+<div class="text-[10px] md:text-xs text-slate-200 font-black uppercase tracking-widest truncate" id="mic-name-display">Monitor IA</div>
 </div>
 <div id="mic-debug-text" class="text-xs md:text-sm text-cyan-300 font-bold italic min-h-[1.5rem] leading-tight break-words">Esperando voz...</div>
 <div class="text-[9px] md:text-[10px] text-slate-400 mt-3 leading-tight font-medium">
@@ -295,7 +300,20 @@ Generar Escenario
 <span id="prev-lyric-text" class="drop-shadow-lg">...</span>
 <span id="prev-lyric-badge"></span>
 </div>
-<div id="current-lyric" class="lyric-line lyric-active">...</div>
+            <div id="current-lyric" class="lyric-line lyric-active">...</div>
+            
+            <div class="relative flex flex-col items-center justify-center w-full">
+                <div id="current-lyric" class="lyric-line lyric-active">...</div>
+                
+                <!-- NUEVA LÍNEA DE SEGUIMIENTO EXACTO -->
+                <div id="tracking-line-container" class="w-full max-w-4xl h-1.5 md:h-2 bg-slate-800/80 rounded-full mt-4 md:mt-6 overflow-visible border border-white/10 shadow-inner opacity-0 transition-opacity duration-300 relative">
+                    <div id="tracking-line-fill" class="h-full bg-gradient-to-r from-yellow-300 via-yellow-500 to-yellow-600 w-0 shadow-[0_0_20px_rgba(251,191,36,0.9)] relative rounded-full">
+                        <!-- Punto de luz en la punta de la barra -->
+                        <div class="absolute right-0 top-1/2 transform -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 bg-white rounded-full shadow-[0_0_15px_white] border-2 md:border-4 border-yellow-400"></div>
+                    </div>
+                </div>
+            </div>
+
 <div id="next-lyric" class="lyric-line lyric-next">...</div>
 </div>
 
@@ -366,33 +384,33 @@ const micDebugPanel = document.getElementById('mic-debug-panel');
 const micDebugText = document.getElementById('mic-debug-text');
 const micStatusDot = document.getElementById('mic-status-dot');
 const syncDisplay = document.getElementById('sync-display');
-        const micSelect = document.getElementById('mic-select');
-        const micNameDisplay = document.getElementById('mic-name-display');
+const micSelect = document.getElementById('mic-select');
+const micNameDisplay = document.getElementById('mic-name-display');
 
-        async function loadMicrophones() {
-            try {
-                await navigator.mediaDevices.getUserMedia({ audio: true });
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const audioInputs = devices.filter(device => device.kind === 'audioinput');
-                
-                micSelect.innerHTML = '';
-                if(audioInputs.length === 0) {
-                    micSelect.innerHTML = '<option value="">No se detectaron micrófonos</option>';
-                    return;
-                }
-                
-                audioInputs.forEach((device, index) => {
-                    const option = document.createElement('option');
-                    option.value = device.deviceId;
-                    option.text = device.label || `Micrófono ${index + 1}`;
-                    micSelect.appendChild(option);
-                });
-            } catch (e) {
-                micSelect.innerHTML = '<option value="">Permiso denegado / No disponible</option>';
-            }
-        }
-        
-        window.addEventListener('load', loadMicrophones);
+async function loadMicrophones() {
+try {
+await navigator.mediaDevices.getUserMedia({ audio: true });
+const devices = await navigator.mediaDevices.enumerateDevices();
+const audioInputs = devices.filter(device => device.kind === 'audioinput');
+
+micSelect.innerHTML = '';
+if(audioInputs.length === 0) {
+micSelect.innerHTML = '<option value="">No se detectaron micrófonos</option>';
+return;
+}
+
+audioInputs.forEach((device, index) => {
+const option = document.createElement('option');
+option.value = device.deviceId;
+option.text = device.label || `Micrófono ${index + 1}`;
+micSelect.appendChild(option);
+});
+} catch (e) {
+micSelect.innerHTML = '<option value="">Permiso denegado / No disponible</option>';
+}
+}
+
+window.addEventListener('load', loadMicrophones);
 
 // Calcula la distancia de Levenshtein (cuántas letras cambian entre dos palabras)
 function editDistance(s1, s2) {
@@ -558,6 +576,9 @@ updateSyncDisplay();
 currentLyricEl.innerHTML = "<span>Toma</span> <span>el</span> <span>Micrófono...</span>";
 nextLyricEl.innerText = "Presiona ¡A Cantar!";
 prevLyricText.innerText = ""; prevLyricBadge.className = ""; prevLyricBadge.innerText = "";
+            
+            const trackingContainer = document.getElementById('tracking-line-container');
+            if(trackingContainer) trackingContainer.classList.add('opacity-0');
 }
 
 function onPlayerStateChange(event) {
@@ -566,33 +587,30 @@ if (event.data === YT.PlayerState.ENDED) showResults();
 
 document.getElementById('btn-start-karaoke').addEventListener('click', () => {
 startOverlay.classList.add('hidden');
-            player.playVideo();
-            if(!isVdjModeActive) initMicForScoring(); 
-            syncLoop(); 
-            countdownScreen.classList.remove('hidden');
-            
-            // Actualiza el texto del monitor visual
-            if (micSelect && micSelect.options.length > 0 && micSelect.selectedIndex >= 0) {
-                micNameDisplay.innerText = micSelect.options[micSelect.selectedIndex].text.substring(0, 20);
-            } else {
-                micNameDisplay.innerText = "Monitor IA";
-            }
+countdownScreen.classList.remove('hidden');
 
-            let count = 3;
-            document.getElementById('countdown-number').innerText = count;
-            
-            const countInterval = setInterval(() => {
-                count--;
-                if (count > 0) {
-                    document.getElementById('countdown-number').innerText = count;
-                } else {
-                    clearInterval(countInterval);
-                    countdownScreen.classList.add('hidden');
-                    player.playVideo();
-                    if(!isVdjModeActive) initMicForScoring(); 
-                    syncLoop(); 
-                }
-            }, 1000);
+// Actualiza el texto del monitor visual
+if (micSelect && micSelect.options.length > 0 && micSelect.selectedIndex >= 0) {
+micNameDisplay.innerText = micSelect.options[micSelect.selectedIndex].text.substring(0, 20);
+} else {
+micNameDisplay.innerText = "Monitor IA";
+}
+
+let count = 3;
+document.getElementById('countdown-number').innerText = count;
+
+const countInterval = setInterval(() => {
+count--;
+if (count > 0) {
+document.getElementById('countdown-number').innerText = count;
+} else {
+clearInterval(countInterval);
+countdownScreen.classList.add('hidden');
+player.playVideo();
+if(!isVdjModeActive) initMicForScoring(); 
+syncLoop(); 
+}
+}, 1000);
 });
 
 function createFloatingText(text, colorClass) {
@@ -652,45 +670,46 @@ combo++;
 createFloatingText("¡EXCELENTE!", "text-pink-400");
 linesHit++;
 } else if (percent > 0) { // Cualquier acierto es Bien
-points = 100 * combo;
-badgeHtml = `<i class="fas fa-thumbs-up text-cyan-100"></i> BIEN +${points}`;
-badgeClass += "badge-good";
-createFloatingText("¡BIEN!", "text-cyan-400");
-} else {
-combo = 1;
-badgeHtml = `<i class="fas fa-times"></i> FALLO`;
-badgeClass += "badge-miss";
-}
+                points = 100 * combo;
+                badgeHtml = `<i class="fas fa-thumbs-up text-cyan-100"></i> BIEN +${points}`;
+                badgeClass += "badge-good";
+                createFloatingText("¡BIEN!", "text-cyan-400");
+            } else {
+                combo = 1;
+                badgeHtml = `<i class="fas fa-times"></i> FALLO`;
+                badgeClass += "badge-miss";
+            }
 
-// Normalizamos el porcentaje visual tope al 100%
-totalAccuracyAcc += Math.min(percent, 100);
-score += points;
+            // Normalizamos el porcentaje visual tope al 100%
+            totalAccuracyAcc += Math.min(percent, 100);
+            score += points;
+            
+            scoreDisplay.innerText = score;
+            comboDisplay.innerText = `Combo x${combo}`;
+            if(combo > 1) {
+                comboDisplay.classList.add('pulse-gold');
+                setTimeout(()=>comboDisplay.classList.remove('pulse-gold'), 500);
+            }
 
-scoreDisplay.innerText = score;
-comboDisplay.innerText = `Combo x${combo}`;
-if(combo > 1) {
-comboDisplay.classList.add('pulse-gold');
-setTimeout(()=>comboDisplay.classList.remove('pulse-gold'), 500);
-}
+            prevLyricText.innerText = lrcData[currentLineIndex].text;
+            prevLyricBadge.className = badgeClass;
+            prevLyricBadge.innerHTML = badgeHtml;
+        }
 
-prevLyricText.innerText = lrcData[currentLineIndex].text;
-prevLyricBadge.className = badgeClass;
-prevLyricBadge.innerHTML = badgeHtml;
-}
+        function syncLoop() {
+            if (isPaused) return;
 
-function syncLoop() {
-if (isPaused) return;
+            if (player && player.getPlayerState && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                const currentTime = player.getCurrentTime() + syncOffset;
+                
+                let newIndex = -1;
+                for (let i = 0; i < lrcData.length; i++) {
+                    if (currentTime >= lrcData[i].time) newIndex = i;
+                    else break;
+                }
 
-if (player && player.getPlayerState && player.getPlayerState() === YT.PlayerState.PLAYING) {
-const currentTime = player.getCurrentTime() + syncOffset;
-
-let newIndex = -1;
-for (let i = 0; i < lrcData.length; i++) {
-if (currentTime >= lrcData[i].time) newIndex = i;
-else break;
-}
-
-if (newIndex !== currentLineIndex && newIndex >= 0) {
+                if (newIndex !== currentLineIndex && newIndex >= 0) {
+                if (currentLineIndex !== newIndex && newIndex >= 0) {
 if (currentLineIndex >= 0) evaluateLine();
 
 currentLineIndex = newIndex;
@@ -705,15 +724,56 @@ const startTime = lrcData[currentLineIndex].time;
 const endTime = lrcData[currentLineIndex + 1].time;
 const duration = endTime - startTime;
 const elapsed = currentTime - startTime;
+                    
+                    // Calculamos el porcentaje general de avance de la línea (0.0 a 1.0)
 const progress = Math.min(Math.max(elapsed / duration, 0), 1);
 
 const spans = currentLyricEl.querySelectorAll('span');
-const fillCount = Math.floor(progress * spans.length);
+                    const fillCount = Math.floor(progress * spans.length);
+                    
+                    // Calculamos la posición exacta por palabra
+                    const exactProgress = progress * spans.length;
+                    const currentSpanIndex = Math.floor(exactProgress);
 
 spans.forEach((span, index) => {
-if (index < fillCount) span.classList.add('word-filled');
-else span.classList.remove('word-filled');
+                        if (index < fillCount) span.classList.add('word-filled');
+                        else span.classList.remove('word-filled');
+                        if (index < currentSpanIndex) {
+                            // Palabra completamente cantada (Pasada)
+                            span.style.background = '#fbbf24';
+                            span.style.webkitBackgroundClip = 'text';
+                            span.style.webkitTextFillColor = 'transparent';
+                            span.style.transform = 'scale(1.08)';
+                            span.style.filter = 'drop-shadow(0 0 15px rgba(251, 191, 36, 0.8))';
+                        } else if (index === currentSpanIndex) {
+                            // Palabra llenándose suavemente (letra por letra - Efecto fluido)
+                            const fillPct = (exactProgress - currentSpanIndex) * 100;
+                            span.style.background = `linear-gradient(to right, #fbbf24 ${fillPct}%, white ${fillPct}%)`;
+                            span.style.webkitBackgroundClip = 'text';
+                            span.style.webkitTextFillColor = 'transparent';
+                            span.style.transform = `scale(${1 + (0.08 * (fillPct/100))})`;
+                            span.style.filter = `drop-shadow(0 0 ${15 * (fillPct/100)}px rgba(251, 191, 36, 0.8))`;
+                        } else {
+                            // Palabra aún no cantada (Futuro)
+                            span.style.background = 'white';
+                            span.style.webkitBackgroundClip = 'text';
+                            span.style.webkitTextFillColor = 'transparent';
+                            span.style.transform = 'scale(1)';
+                            span.style.filter = 'none';
+                        }
 });
+
+                    // Actualizar la nueva Barra de Seguimiento
+                    const trackingContainer = document.getElementById('tracking-line-container');
+                    const trackingFill = document.getElementById('tracking-line-fill');
+                    if (trackingContainer && trackingFill) {
+                        trackingContainer.classList.remove('opacity-0');
+                        trackingFill.style.width = `${progress * 100}%`;
+                    }
+                } else {
+                    // Ocultar barra al finalizar la canción o en silencios largos
+                    const trackingContainer = document.getElementById('tracking-line-container');
+                    if (trackingContainer) trackingContainer.classList.add('opacity-0');
 }
 }
 animationFrameId = requestAnimationFrame(syncLoop);
@@ -738,8 +798,7 @@ const normalize = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").
 
 recognition.onstart = () => {
 micStatusDot.className = "w-3 h-3 rounded-full bg-green-500 animate-pulse shrink-0 shadow-[0_0_10px_lime]";
-                micDebugText.innerText = "🟢 Escuchando consola BOSE...";
-                micDebugText.innerText = "🟢 Escuchando...";
+micDebugText.innerText = "🟢 Escuchando...";
 };
 
 recognition.onerror = (e) => {
