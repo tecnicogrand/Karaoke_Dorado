@@ -112,15 +112,18 @@
         .btn-outline { background: transparent; border: 2px solid var(--neon-blue); color: var(--neon-blue); padding: 18px; border-radius: 12px; font-weight: bold; font-size: 1.1rem; cursor: pointer; transition: 0.3s;}
         .btn-outline:hover { background: var(--neon-blue); color: #000; box-shadow: 0 0 20px var(--neon-blue);}
 
-        /* --- KARAOKE UI --- */
+        /* --- KARAOKE UI (OPTIMIZADO) --- */
         .video-bg { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; pointer-events: none; background: #000; }
+        
+        /* OPTIMIZACIÓN DE RENDIMIENTO: Eliminados opacity y filters del iframe para no ahogar la GPU */
         .video-bg iframe {
             width: 100vw; height: 56.25vw; min-height: 100vh; min-width: 177.77vh;
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.35; filter: contrast(1.2) saturate(1.2);
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
         }
+        /* El overlay ahora asume todo el oscurecimiento para mejor rendimiento */
         .overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(circle, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.95) 100%); z-index: 2;
+            background: radial-gradient(circle, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.95) 100%); z-index: 2;
         }
 
         .karaoke-container { position: relative; z-index: 3; width: 100%; height: 100%; display: flex; flex-direction: column; }
@@ -189,7 +192,7 @@
             transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
             display: flex; flex-direction: column; align-items: center; gap: 40px;
             padding-bottom: 50vh; 
-            will-change: transform; /* OPTIMIZACIÓN GPU */
+            will-change: transform;
         }
 
         .lyric-line {
@@ -209,21 +212,28 @@
             animation: pulseWait 2s infinite cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* Palabras y relleno (Wipe effect) */
+        /* Palabras y relleno (OPTIMIZADO CON CLIP-PATH) */
         .karaoke-word {
             display: inline-block; position: relative; margin-right: 10px;
             color: rgba(255,255,255,0.9); text-shadow: 0 0 10px rgba(255,255,255,0.2);
         }
         .karaoke-word-fill {
-            position: absolute; top: 0; left: 0; overflow: hidden; white-space: nowrap; width: 0%;
+            position: absolute; top: 0; left: 0; white-space: nowrap; width: 100%;
             color: var(--neon-blue); text-shadow: 0 0 20px var(--neon-blue), 0 0 40px rgba(0, 243, 255, 0.5); 
-            transition: width 0.1s linear; font-weight: 900;
-            will-change: width; /* OPTIMIZACIÓN GPU */
+            font-weight: 900;
+            
+            /* Optimización extrema: En lugar de cambiar el width (lo cual traba la PC), usamos recortes de hardware */
+            clip-path: inset(0 100% 0 0);
+            -webkit-clip-path: inset(0 100% 0 0);
+            transition: clip-path 0.1s linear, -webkit-clip-path 0.1s linear;
+            will-change: clip-path, -webkit-clip-path;
         }
 
         /* Iluminación Instantánea Vía CSS */
         .karaoke-word.voice-matched .karaoke-word-fill { 
-            width: 100% !important; transition: width 0.05s ease-out !important; 
+            clip-path: inset(0 0% 0 0) !important;
+            -webkit-clip-path: inset(0 0% 0 0) !important;
+            transition: clip-path 0.05s ease-out, -webkit-clip-path 0.05s ease-out !important; 
             color: var(--gold); text-shadow: 0 0 25px var(--gold), 0 0 50px rgba(255, 215, 0, 0.6); 
         }
         .karaoke-word.voice-matched { transform: translateY(-4px) scale(1.05); transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
@@ -289,7 +299,7 @@
 
     <!-- PANTALLA INICIO -->
     <div id="home-screen" class="screen active">
-        <div class="version-tag">v2.2 - Pro Performance</div>
+        <div class="version-tag">v2.3 - Ultra Smooth</div>
         <h1 class="title">Neon Voice Pro</h1>
         <div class="input-box">
             <div class="input-group">
@@ -544,7 +554,7 @@
                     if (text) {
                         const wordsArr = text.split(/\s+/).map(w => ({
                             original: w, clean: normalize(w), matched: false, startTime: 0, endTime: 0,
-                            fillEl: null, wrapEl: null // Preparar para DOM Caching
+                            fillEl: null, wrapEl: null 
                         }));
                         tempLines.push({ time, text, words: wordsArr, lineEl: null });
                     }
@@ -572,27 +582,27 @@
             return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
         }
 
-        // --- 3. RENDERIZADO VISUAL EXACTO (OPTIMIZACIÓN DOM CACHING) ---
+        // --- 3. RENDERIZADO VISUAL EXACTO Y PERFORMANCE CLIP-PATH ---
         function renderLyrics() {
             ui.scroller.innerHTML = "";
             parsedLyrics.forEach((line, i) => {
                 const div = document.createElement('div');
                 div.className = 'lyric-line'; 
                 div.id = `line-${i}`;
-                line.lineEl = div; // CACHING de Línea
+                line.lineEl = div; 
                 
                 line.words.forEach((w, wordIndex) => {
                     const spanWrap = document.createElement('span');
                     spanWrap.className = 'karaoke-word';
                     spanWrap.id = `word-wrap-${i}-${wordIndex}`;
                     spanWrap.innerText = w.original;
-                    w.wrapEl = spanWrap; // CACHING de Contenedor de Palabra
+                    w.wrapEl = spanWrap; 
                     
                     const spanFill = document.createElement('span');
                     spanFill.className = 'karaoke-word-fill';
                     spanFill.id = `word-fill-${i}-${wordIndex}`;
                     spanFill.innerText = w.original; 
-                    w.fillEl = spanFill; // CACHING de Relleno (Wipe)
+                    w.fillEl = spanFill; 
                     
                     spanWrap.appendChild(spanFill);
                     div.appendChild(spanWrap);
@@ -606,7 +616,11 @@
             if (lineIdx < 0 || !parsedLyrics[lineIdx]) return;
             const line = parsedLyrics[lineIdx];
             line.words.forEach(w => {
-                 if (w.fillEl) w.fillEl.style.width = '100%'; // Usando caché en lugar de document.getElementById
+                 if (w.fillEl) {
+                     // Utilizar clip-path en 0% (totalmente visible)
+                     w.fillEl.style.clipPath = 'inset(0 0% 0 0)';
+                     w.fillEl.style.webkitClipPath = 'inset(0 0% 0 0)';
+                 }
             });
         }
 
@@ -659,7 +673,6 @@
 
                     activeLineIndex = newActiveIndex;
                     
-                    // REFACTORIZADO: Usando referencias en caché en vez de querySelectorAll (Aumento masivo de rendimiento)
                     parsedLyrics.forEach((line, index) => {
                         if(!line.lineEl) return;
                         line.lineEl.className = 'lyric-line'; 
@@ -698,19 +711,24 @@
 
                 wasWaiting = isWaiting;
 
-                // --- ANIMAR COLOR (WIPE EFFECT) ---
+                // --- ANIMAR COLOR (WIPE EFFECT CON CLIP-PATH) ---
                 if (activeLineIndex !== -1 && parsedLyrics[activeLineIndex] && !isWaiting) {
                     const line = parsedLyrics[activeLineIndex];
                     line.words.forEach((w) => {
-                        // REFACTORIZADO: Usando caché en lugar de document.getElementById
                         if (w.fillEl && !w.matched) {
                             if (currentTime >= w.endTime) {
-                                w.fillEl.style.width = '100%';
+                                w.fillEl.style.clipPath = 'inset(0 0% 0 0)';
+                                w.fillEl.style.webkitClipPath = 'inset(0 0% 0 0)';
                             } else if (currentTime >= w.startTime && currentTime < w.endTime) {
-                                const percent = ((currentTime - w.startTime) / (w.endTime - w.startTime)) * 100;
-                                w.fillEl.style.width = `${percent}%`;
+                                const percent = ((currentTime - w.startTime) / (w.endTime - w.startTime));
+                                // Inset de derecha a izquierda: 100% (oculto) a 0% (visible)
+                                const hiddenRight = (1 - percent) * 100;
+                                const clipVal = `inset(0 ${hiddenRight}% 0 0)`;
+                                w.fillEl.style.clipPath = clipVal;
+                                w.fillEl.style.webkitClipPath = clipVal;
                             } else {
-                                w.fillEl.style.width = '0%';
+                                w.fillEl.style.clipPath = 'inset(0 100% 0 0)';
+                                w.fillEl.style.webkitClipPath = 'inset(0 100% 0 0)';
                             }
                         }
                     });
@@ -756,7 +774,7 @@
                     }
                 }
                 
-                // Limitar longitud del texto mostrado para evitar sobrecarga de RAM visual
+                // Limitar longitud del texto mostrado
                 let displayText = final || interim || "Escuchando...";
                 if(displayText.length > 80) displayText = "..." + displayText.substring(displayText.length - 80);
                 ui.voiceTranscript.innerText = displayText;
