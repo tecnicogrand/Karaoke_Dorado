@@ -165,7 +165,7 @@
         }
         .voice-monitor-window.show { display: flex; animation: fadeIn 0.3s ease; }
         .voice-monitor-title { font-size: 0.75rem; color: var(--neon-blue); margin-bottom: 12px; border-bottom: 1px solid rgba(0,243,255,0.2); padding-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;}
-        .voice-transcript { font-size: 1.1rem; color: #fff; font-style: italic; min-height: 50px; word-wrap: break-word; line-height: 1.4;}
+        .voice-transcript { font-size: 1.1rem; color: #fff; font-style: italic; min-height: 50px; max-height: 100px; overflow: hidden; word-wrap: break-word; line-height: 1.4;}
 
         .instrumental-timer {
             position: absolute; top: 18%; left: 50%; transform: translateX(-50%);
@@ -189,6 +189,7 @@
             transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
             display: flex; flex-direction: column; align-items: center; gap: 40px;
             padding-bottom: 50vh; 
+            will-change: transform; /* OPTIMIZACIÓN GPU */
         }
 
         .lyric-line {
@@ -217,6 +218,7 @@
             position: absolute; top: 0; left: 0; overflow: hidden; white-space: nowrap; width: 0%;
             color: var(--neon-blue); text-shadow: 0 0 20px var(--neon-blue), 0 0 40px rgba(0, 243, 255, 0.5); 
             transition: width 0.1s linear; font-weight: 900;
+            will-change: width; /* OPTIMIZACIÓN GPU */
         }
 
         /* Iluminación Instantánea Vía CSS */
@@ -272,7 +274,7 @@
     <div id="fallback-modal" class="modal-overlay">
         <div class="modal-box">
             <h2>⚠️ Letra no encontrada</h2>
-            <p>No pudimos descargar la letra automáticamente de LRCLIB. Por favor, especifica el nombre del artista y la canción para una búsqueda más precisa.</p>
+            <p>No pudimos descargar la letra automáticamente. Por favor, especifica el nombre del artista y la canción para una búsqueda más precisa.</p>
             <div style="display: flex; gap: 15px; margin-bottom: 25px;">
                 <input type="text" id="modal-artist" placeholder="🎤 Artista (Ej. Coldplay)" autocomplete="off">
                 <input type="text" id="modal-song" placeholder="🎵 Canción (Ej. Yellow)" autocomplete="off">
@@ -287,7 +289,7 @@
 
     <!-- PANTALLA INICIO -->
     <div id="home-screen" class="screen active">
-        <div class="version-tag">v2.1 - Aesthetic</div>
+        <div class="version-tag">v2.2 - Pro Performance</div>
         <h1 class="title">Neon Voice Pro</h1>
         <div class="input-box">
             <div class="input-group">
@@ -362,7 +364,7 @@
         let watchdogIntervalId, isRecognizing = false, lastResultTime = Date.now();
         let wasWaiting = false;
 
-        // --- DOM ---
+        // --- DOM CACHE ---
         const ui = {
             home: document.getElementById('home-screen'), karaoke: document.getElementById('karaoke-screen'),
             results: document.getElementById('results-screen'), url: document.getElementById('url-input'), 
@@ -386,7 +388,6 @@
             ui.countdownOverlay.classList.add('show');
             let count = 3;
             ui.countdownNumber.innerText = count;
-            // Reiniciar animación CSS
             ui.countdownNumber.style.animation = 'none';
             ui.countdownNumber.offsetHeight; 
             ui.countdownNumber.style.animation = 'pulseCount 1s infinite cubic-bezier(0.16, 1, 0.3, 1)';
@@ -414,7 +415,7 @@
                 player.pauseVideo();
                 ui.pauseBtn.innerText = "▶️ Reanudar";
             } else if (state === YT.PlayerState.PAUSED || state === YT.PlayerState.CUED) {
-                ui.pauseBtn.style.pointerEvents = 'none'; // Prevenir doble clic
+                ui.pauseBtn.style.pointerEvents = 'none';
                 startCountdown(() => {
                     isPausedManually = false;
                     player.playVideo();
@@ -456,26 +457,23 @@
                 if (data.title) {
                     ui.msg.innerText = "✅ Título procesado. Listo para iniciar.";
                     ui.url.dataset.title = data.title;
-                } else throw new Error("No title in response");
+                } else throw new Error("No title");
             } catch (e) {
                 ui.msg.innerText = "Modo de respaldo. Recomiendo llenar Artista y Canción.";
                 ui.url.dataset.title = "Unknown";
             }
         }
 
-        // --- MOTOR DE BÚSQUEDA MULTI-FASE ROBUSTO ---
         async function fetchLyricsWithRetry(originalTitle, artistOverride, songOverride) {
             parsedLyrics = [];
             const searchUrls = [];
             const normalizeStr = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
-            // Prioridad absoluta a los campos manuales
             if (artistOverride && songOverride) {
                 searchUrls.push(`https://lrclib.net/api/search?track_name=${encodeURIComponent(songOverride)}&artist_name=${encodeURIComponent(artistOverride)}`);
                 searchUrls.push(`https://lrclib.net/api/search?q=${encodeURIComponent(songOverride + " " + artistOverride)}`);
             }
 
-            // Si hay título de YouTube, parsearlo y agregarlo a las búsquedas
             if(originalTitle !== "Unknown") {
                 let cleanTitle = originalTitle.replace(/\[.*?\]|\(.*?\)|【.*?】|「.*?」/g, ' ').trim();
                 cleanTitle = cleanTitle.replace(/(official|music|video|lyric|lyrics|audio|hd|4k|hq|remix)/gi, ' ').trim();
@@ -522,9 +520,9 @@
                 return true;
             } else if (match && match.plainLyrics) {
                 ui.scroller.innerHTML = `<div class='lyric-line active' style='font-size: 1.5rem; line-height: 2; visibility: visible; position: relative;'>${match.plainLyrics}</div>`;
-                return true; // Se encontró algo, aunque no sea sincronizado
+                return true; 
             } else {
-                return false; // Fallo total, no se encontró nada
+                return false;
             }
         }
 
@@ -545,9 +543,10 @@
                     
                     if (text) {
                         const wordsArr = text.split(/\s+/).map(w => ({
-                            original: w, clean: normalize(w), matched: false, startTime: 0, endTime: 0 
+                            original: w, clean: normalize(w), matched: false, startTime: 0, endTime: 0,
+                            fillEl: null, wrapEl: null // Preparar para DOM Caching
                         }));
-                        tempLines.push({ time, text, words: wordsArr });
+                        tempLines.push({ time, text, words: wordsArr, lineEl: null });
                     }
                 }
             });
@@ -557,7 +556,6 @@
                 const nextLineTime = (i + 1 < tempLines.length) ? tempLines[i+1].time : currentLine.time + 5; 
                 
                 const lineDuration = nextLineTime - currentLine.time;
-                // El tiempo activo es más corto para que no se pegue visualmente a la siguiente línea
                 const activeDuration = Math.min(lineDuration, currentLine.words.length * 0.4); 
                 const timePerWord = activeDuration / currentLine.words.length;
 
@@ -574,24 +572,27 @@
             return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
         }
 
-        // --- 3. RENDERIZADO VISUAL EXACTO Y TIEMPOS MUERTOS ---
+        // --- 3. RENDERIZADO VISUAL EXACTO (OPTIMIZACIÓN DOM CACHING) ---
         function renderLyrics() {
             ui.scroller.innerHTML = "";
             parsedLyrics.forEach((line, i) => {
                 const div = document.createElement('div');
                 div.className = 'lyric-line'; 
                 div.id = `line-${i}`;
+                line.lineEl = div; // CACHING de Línea
                 
                 line.words.forEach((w, wordIndex) => {
                     const spanWrap = document.createElement('span');
                     spanWrap.className = 'karaoke-word';
                     spanWrap.id = `word-wrap-${i}-${wordIndex}`;
                     spanWrap.innerText = w.original;
+                    w.wrapEl = spanWrap; // CACHING de Contenedor de Palabra
                     
                     const spanFill = document.createElement('span');
                     spanFill.className = 'karaoke-word-fill';
                     spanFill.id = `word-fill-${i}-${wordIndex}`;
                     spanFill.innerText = w.original; 
+                    w.fillEl = spanFill; // CACHING de Relleno (Wipe)
                     
                     spanWrap.appendChild(spanFill);
                     div.appendChild(spanWrap);
@@ -604,9 +605,8 @@
         function forceCompleteLine(lineIdx) {
             if (lineIdx < 0 || !parsedLyrics[lineIdx]) return;
             const line = parsedLyrics[lineIdx];
-            line.words.forEach((w, wIdx) => {
-                 const fillEl = document.getElementById(`word-fill-${lineIdx}-${wIdx}`);
-                 if (fillEl) fillEl.style.width = '100%'; // Forzar visualmente el llenado al terminar la línea
+            line.words.forEach(w => {
+                 if (w.fillEl) w.fillEl.style.width = '100%'; // Usando caché en lugar de document.getElementById
             });
         }
 
@@ -621,10 +621,9 @@
                 let isWaiting = false;
                 let timeToNext = 0;
 
-                // 1. Encontrar línea activa exacta (con poco margen de anticipación)
+                // 1. Encontrar línea activa
                 for (let i = 0; i < parsedLyrics.length; i++) {
                     const line = parsedLyrics[i];
-                    // La línea termina un poco después de su última palabra
                     const lastWordEndTime = line.words[line.words.length - 1].endTime;
                     const lineEndTime = lastWordEndTime + 1.0; 
                     
@@ -634,7 +633,7 @@
                     }
                 }
 
-                // 2. Si no hay línea activa, revisar si estamos en un tiempo muerto (esperando la siguiente)
+                // 2. Revisar si estamos en un tiempo muerto
                 if (newActiveIndex === -1) {
                     for (let i = 0; i < parsedLyrics.length; i++) {
                         if (parsedLyrics[i].time > currentTime) {
@@ -646,7 +645,6 @@
                     }
                 }
 
-                // 3. Si ya pasamos todas las líneas, quedarnos en la última
                 if (newActiveIndex === -1 && parsedLyrics.length > 0) {
                     newActiveIndex = parsedLyrics.length - 1;
                 }
@@ -654,7 +652,6 @@
                 // --- MANEJO DE CAMBIO DE LÍNEA ---
                 if (newActiveIndex !== activeLineIndex && newActiveIndex !== -1) {
                     
-                    // Evaluar la línea anterior que acaba de pasar (solo si no venimos de un estado de espera)
                     if(activeLineIndex !== -1 && !wasWaiting) {
                         forceCompleteLine(activeLineIndex);
                         evaluateLineCompletion(activeLineIndex);
@@ -662,20 +659,21 @@
 
                     activeLineIndex = newActiveIndex;
                     
-                    const allLines = document.querySelectorAll('.lyric-line');
-                    allLines.forEach((el, index) => {
-                        el.className = 'lyric-line'; 
+                    // REFACTORIZADO: Usando referencias en caché en vez de querySelectorAll (Aumento masivo de rendimiento)
+                    parsedLyrics.forEach((line, index) => {
+                        if(!line.lineEl) return;
+                        line.lineEl.className = 'lyric-line'; 
                         if (index === activeLineIndex) {
-                            el.classList.add('active');
+                            line.lineEl.classList.add('active');
                         } else if (index === activeLineIndex - 1) {
-                            el.classList.add('past');
+                            line.lineEl.classList.add('past');
                         } else if (index === activeLineIndex + 1) {
-                            el.classList.add('upcoming');
+                            line.lineEl.classList.add('upcoming');
                         }
                     });
 
                     // CENTRADO EXACTO
-                    const activeEl = document.getElementById(`line-${activeLineIndex}`);
+                    const activeEl = parsedLyrics[activeLineIndex].lineEl;
                     if (activeEl) {
                         const viewportHalf = ui.viewport.offsetHeight / 2;
                         const activeElCenter = activeEl.offsetTop + (activeEl.offsetHeight / 2);
@@ -684,14 +682,11 @@
                     }
                 }
 
-                // --- GESTIÓN DE TIEMPOS MUERTOS (WAITING MODE) ---
-                const activeEl = document.getElementById(`line-${activeLineIndex}`);
+                // --- GESTIÓN DE TIEMPOS MUERTOS ---
+                const activeEl = parsedLyrics[activeLineIndex] ? parsedLyrics[activeLineIndex].lineEl : null;
                 if (activeEl) {
-                    if (isWaiting) {
-                        activeEl.classList.add('waiting-mode');
-                    } else {
-                        activeEl.classList.remove('waiting-mode');
-                    }
+                    if (isWaiting) activeEl.classList.add('waiting-mode');
+                    else activeEl.classList.remove('waiting-mode');
                 }
 
                 if (isWaiting && timeToNext > 2) {
@@ -704,20 +699,18 @@
                 wasWaiting = isWaiting;
 
                 // --- ANIMAR COLOR (WIPE EFFECT) ---
-                // Solo animar si es la línea oficial (no en espera) y las palabras no han sido cantadas
                 if (activeLineIndex !== -1 && parsedLyrics[activeLineIndex] && !isWaiting) {
                     const line = parsedLyrics[activeLineIndex];
-                    line.words.forEach((w, wIdx) => {
-                        const fillEl = document.getElementById(`word-fill-${activeLineIndex}-${wIdx}`);
-                        // Solo el wipe automático si la palabra NO ha sido acertada por voz
-                        if (fillEl && !w.matched) {
+                    line.words.forEach((w) => {
+                        // REFACTORIZADO: Usando caché en lugar de document.getElementById
+                        if (w.fillEl && !w.matched) {
                             if (currentTime >= w.endTime) {
-                                fillEl.style.width = '100%';
+                                w.fillEl.style.width = '100%';
                             } else if (currentTime >= w.startTime && currentTime < w.endTime) {
                                 const percent = ((currentTime - w.startTime) / (w.endTime - w.startTime)) * 100;
-                                fillEl.style.width = `${percent}%`;
+                                w.fillEl.style.width = `${percent}%`;
                             } else {
-                                fillEl.style.width = '0%';
+                                w.fillEl.style.width = '0%';
                             }
                         }
                     });
@@ -738,7 +731,7 @@
             recognition.continuous = true; 
             recognition.interimResults = true; 
             recognition.lang = 'es-ES';
-            recognition.maxAlternatives = 2; // Reducido para mayor velocidad
+            recognition.maxAlternatives = 2; 
 
             recognition.onstart = () => {
                 isRecognizing = true;
@@ -747,11 +740,10 @@
             };
 
             recognition.onresult = (e) => {
-                lastResultTime = Date.now(); // Actualizamos el reloj del watchdog
+                lastResultTime = Date.now(); 
                 let interim = ""; let final = "";
-                let newPhrases = ""; // Acumulamos todas las alternativas para buscar coincidencias
+                let newPhrases = ""; 
 
-                // Solo procesar los últimos 10 resultados para evitar lentitud
                 const startIndex = Math.max(e.resultIndex, e.results.length - 10);
 
                 for (let i = startIndex; i < e.results.length; ++i) {
@@ -759,37 +751,30 @@
                     if(res.isFinal) final += res[0].transcript + " ";
                     else interim += res[0].transcript + " ";
                     
-                    // Extraer alternativas para el motor de coincidencia
                     for(let j=0; j<res.length; j++){
                         newPhrases += res[j].transcript + " ";
                     }
                 }
                 
-                ui.voiceTranscript.innerText = final || interim || "Escuchando...";
+                // Limitar longitud del texto mostrado para evitar sobrecarga de RAM visual
+                let displayText = final || interim || "Escuchando...";
+                if(displayText.length > 80) displayText = "..." + displayText.substring(displayText.length - 80);
+                ui.voiceTranscript.innerText = displayText;
                 
-                // Enviar las frases interinas y finales inmediatamente al validador
                 checkVoiceMatch(newPhrases.trim());
             };
             
-            recognition.onerror = (e) => {
-                console.log("Speech Error:", e.error); // Silencioso para el usuario
-            }; 
+            recognition.onerror = (e) => { if(e.error !== 'no-speech') console.log("Speech Error:", e.error); }; 
 
             recognition.onend = () => { 
                 isRecognizing = false;
                 if (isPlaying && !isPausedManually) {
-                    // Forzar reinicio ultra-rápido en caso de cortes por silencio
-                    setTimeout(() => {
-                        if(!isRecognizing) {
-                            try { recognition.start(); } catch(err){}
-                        }
-                    }, 10); 
+                    setTimeout(() => { if(!isRecognizing) { try { recognition.start(); } catch(err){} } }, 10); 
                 }
             };
             return true;
         }
 
-        // --- WATCHDOG: PREVIENE CONGELAMIENTO POR VOLUMEN ALTO ---
         function startWatchdog() {
             if (watchdogIntervalId) clearInterval(watchdogIntervalId);
             lastResultTime = Date.now();
@@ -797,10 +782,9 @@
             watchdogIntervalId = setInterval(() => {
                 if (isPlaying && !isPausedManually) {
                     const now = Date.now();
-                    // Si pasaron 6 segundos sin NINGUN resultado, significa que el VAD colapsó por la música alta.
                     if (isRecognizing && (now - lastResultTime > 6000)) {
-                        console.log("Watchdog: Forzando limpieza de buffer por ruido alto...");
-                        try { recognition.stop(); } catch(e){} // Esto gatillará onend y reiniciará limpiamente
+                        console.log("Watchdog: Reinicio de buffer");
+                        try { recognition.stop(); } catch(e){} 
                     } else if (!isRecognizing) {
                         try { recognition.start(); } catch(e){}
                     }
@@ -812,7 +796,6 @@
             if (watchdogIntervalId) clearInterval(watchdogIntervalId);
         }
 
-        // --- MOTOR SECUENCIAL Y LOOKAHEAD ---
         function checkVoiceMatch(spokenText) {
             if (parsedLyrics.length === 0) {
                 if (spokenText.length > 1) { score += 5; ui.score.innerText = score; }
@@ -826,66 +809,51 @@
 
             const currentTime = player.getCurrentTime();
             
-            // Revisar línea actual y la anterior
             [activeLineIndex - 1, activeLineIndex].forEach(lineIdx => {
                 if (lineIdx < 0 || !parsedLyrics[lineIdx]) return;
                 
                 const line = parsedLyrics[lineIdx];
-                
-                // Encontrar la primera palabra NO acertada de esta línea
                 let firstUnmatchedIdx = line.words.findIndex(w => !w.matched && w.clean.length > 0);
-                if (firstUnmatchedIdx === -1) return; // Línea completa
+                if (firstUnmatchedIdx === -1) return; 
 
                 line.words.forEach((lineWord, wIdx) => {
-                    // Solo evaluamos palabras no acertadas que tengan algún texto
                     if (!lineWord.matched && lineWord.clean.length > 0) {
                         
-                        // BLOQUEO SECUENCIAL: Solo permitimos mirar hasta 4 palabras por delante del primer fallo
                         if (wIdx > firstUnmatchedIdx + 4) return;
-
-                        // BLOQUEO DE TIEMPO: No evaluar palabras que están a más de 0.8s en el futuro
                         if (currentTime < lineWord.startTime - 0.8) return;
 
                         let isMatch = false;
                         const wordClean = lineWord.clean;
 
-                        // Lógica de coincidencia inclusiva (para frases cortas y arrastradas)
                         if (spokenWordsArray.includes(wordClean)) {
-                            isMatch = true; // Exacta
+                            isMatch = true;
                         } 
                         else if (wordClean.length >= 3) {
-                            // Dinámica: Comprobar prefijos o si está contenida
                             const prefix = wordClean.substring(0, 2);
                             if (spokenWordsArray.some(sw => sw.includes(wordClean) || wordClean.includes(sw) || sw.startsWith(prefix))) {
                                 isMatch = true;
                             }
                         }
                         else if (wordClean.length <= 2) {
-                            // Regalo de conectores (y, de, a) si es su turno exacto
                             if (wIdx <= firstUnmatchedIdx + 1) {
                                 isMatch = true;
                             }
                         }
 
                         if (isMatch) {
-                            // AUTO-COMPLETADO (LOOKAHEAD): Si acertamos la palabra N, damos por buenas todas las anteriores que se saltó
                             for(let i = firstUnmatchedIdx; i < wIdx; i++) {
                                 if (!line.words[i].matched && line.words[i].clean.length > 0) {
                                     line.words[i].matched = true;
-                                    const wrap = document.getElementById(`word-wrap-${lineIdx}-${i}`);
-                                    if (wrap) wrap.classList.add('voice-matched');
-                                    score += 5; // Puntos menores por auto-completar
+                                    if (line.words[i].wrapEl) line.words[i].wrapEl.classList.add('voice-matched');
+                                    score += 5; 
                                 }
                             }
 
-                            // Marcar palabra actual
                             lineWord.matched = true;
                             score += 20; ui.score.innerText = score; totalWordsMatched++;
                             
-                            const wordWrapEl = document.getElementById(`word-wrap-${lineIdx}-${wIdx}`);
-                            if (wordWrapEl) wordWrapEl.classList.add('voice-matched'); // Esto dispara el 100% css override
+                            if (lineWord.wrapEl) lineWord.wrapEl.classList.add('voice-matched'); 
                             
-                            // Actualizar el cursor
                             firstUnmatchedIdx = line.words.findIndex(w => !w.matched && w.clean.length > 0);
                         }
                     }
@@ -903,7 +871,7 @@
             if(!parsedLyrics[lineIdx]) return;
             
             const line = parsedLyrics[lineIdx];
-            const evaluableWords = line.words.filter(w => w.clean.length > 0); // Contar todas las palabras
+            const evaluableWords = line.words.filter(w => w.clean.length > 0);
             if (evaluableWords.length === 0) return;
 
             totalWordsEvaluated += evaluableWords.length;
@@ -952,11 +920,11 @@
                     playerVars: { 'autoplay': 1, 'controls': 0, 'disablekb': 1, 'modestbranding': 1, 'rel': 0, 'iv_load_policy': 3, 'fs': 0 },
                     events: { 
                         'onReady': (event) => {
-                            event.target.setVolume(100); // Forzar volumen al iniciar
+                            event.target.setVolume(100); 
                         },
                         'onStateChange': (e) => {
                             if (e.data === YT.PlayerState.PLAYING) {
-                                player.setVolume(100); // Reforzar volumen
+                                player.setVolume(100); 
                                 ui.pauseBtn.innerText = "⏸️ Pausar";
                                 
                                 if (!isPlaying) {
@@ -1001,7 +969,6 @@
             ui.msg.innerText = "Autorizando consola... 🎙️";
 
             try {
-                // Pedir micrófono RAW (sin filtros del navegador) para compatibilidad con interfaces Pioneer/Bose
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
                 stream.getTracks().forEach(t => t.stop());
                 
@@ -1013,7 +980,6 @@
                 if (lyricsFound) {
                     launchKaraokeMode(vId);
                 } else {
-                    // Mostrar Modal si falla
                     ui.msg.innerText = "";
                     ui.modalArtist.value = artistOverride;
                     ui.modalSong.value = songOverride;
@@ -1044,7 +1010,6 @@
 
         ui.startBtn.addEventListener('click', attemptStartKaraoke);
 
-        // Acciones del Modal Fallback
         ui.modalRetryBtn.addEventListener('click', () => {
             ui.artistInput.value = ui.modalArtist.value;
             ui.songInput.value = ui.modalSong.value;
